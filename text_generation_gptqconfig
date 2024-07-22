@@ -1,0 +1,37 @@
+!pip install auto-gptq
+!pip install --upgrade optimum
+!pip install --upgrade accelerate
+!pip install transformers==4.38.0
+
+from transformers import AutoModelForCausalLM, AutoTokenizer, GPTQConfig
+import torch
+
+# Load the tokenizer
+tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
+
+# Configure GPTQConfig for 4-bit quantization
+gptq_config = GPTQConfig(
+    bits=4,  # 4-bit precision for quantization
+    dataset="c4"  # This is intended to specify the dataset used for calibration during quantization
+)
+
+# Load the model with the configuration
+model = AutoModelForCausalLM.from_pretrained("openai-community/gpt2", quantization_config=gptq_config)
+
+# Move the model to GPU if available, otherwise keep it on CPU
+# Which device to use for running the model:
+# "cuda" - If a GPU with CUDA support is available, the model will run on the GPU
+# "cpu" - If no CUDA-enabled GPU is available, the model will run on the CPU
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# This moves the model to the specified device (GPU or CPU). 
+#It ensures that all the model's parameters and buffers are transferred to the same device where computations will be performed.
+model.to(device)  
+
+# Example text generation
+text = "Hello my name is"
+inputs = tokenizer(text, return_tensors="pt").to(device)  # Move inputs to the same device as the model
+
+outputs = model.generate(inputs["input_ids"], min_length=40, max_length=128)
+generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+print(generated_text)
